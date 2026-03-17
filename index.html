@@ -1,0 +1,308 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Team Member Wheel</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react/18.2.0/umd/react.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/react-dom/18.2.0/umd/react-dom.production.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/babel-standalone/7.23.5/babel.min.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+            margin: 0;
+            padding: 20px;
+            background: #f5f5f5;
+        }
+        .container {
+            display: flex;
+            gap: 2rem;
+            max-width: 1200px;
+            margin: 0 auto;
+        }
+        .wheel-container {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 2rem;
+        }
+        .controls {
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            gap: 1rem;
+        }
+        .members-panel {
+            background: white;
+            padding: 1.5rem;
+            border-radius: 8px;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            min-width: 250px;
+        }
+        .add-member {
+            display: flex;
+            gap: 0.5rem;
+            margin-bottom: 1rem;
+        }
+        .member-list {
+            display: flex;
+            flex-direction: column;
+            gap: 0.5rem;
+        }
+        .member-item {
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        button {
+            background: #1a1a1a;
+            color: white;
+            border: none;
+            padding: 0.5rem 1rem;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 1rem;
+        }
+        button:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+        }
+        input[type="text"] {
+            padding: 0.5rem;
+            border: 1px solid #ccc;
+            border-radius: 4px;
+            font-size: 1rem;
+        }
+        .selected {
+            font-size: 1.25rem;
+            font-weight: bold;
+            margin-top: 1rem;
+        }
+    </style>
+</head>
+<body>
+    <div id="root"></div>
+    <script type="text/babel">
+        const TeamSpinner = () => {
+            const [rotation, setRotation] = React.useState(0);
+            const [isSpinning, setIsSpinning] = React.useState(false);
+            const [selectedMember, setSelectedMember] = React.useState(null);
+            const [newMember, setNewMember] = React.useState('');
+            const [teamState, setTeamState] = React.useState({
+                'Andreas': true,
+                'Anton': true,
+                'Carl': true,
+                'Cez': false,
+                'Fredrik': true,
+                '晓翔': true,
+                'Jonas': true,
+                'Pettersson': false,
+                'Tall': true,
+                'Jochen': false,
+                'Niklas': true,
+                'Oskar': true,
+                'Rikaz': true,
+                'Oky': true,
+                'Mustafizur': true
+            });
+            const spinTimeoutRef = React.useRef(null);
+            const tickSoundRef = React.useRef(new Audio('https://www.soundjay.com/button/sounds/button-09.mp3'));
+            const winSoundRef = React.useRef(new Audio('https://www.soundjay.com/misc/sounds/bell-ring-05.mp3'));
+
+            const activeMembers = Object.entries(teamState)
+                .filter(([_, isActive]) => isActive)
+                .map(([name]) => name);
+
+            const handleAddMember = () => {
+                if (newMember.trim() && !teamState.hasOwnProperty(newMember.trim())) {
+                    setTeamState(prev => ({
+                        ...prev,
+                        [newMember.trim()]: true
+                    }));
+                    setNewMember('');
+                }
+            };
+
+            const spinWheel = () => {
+                if (isSpinning || activeMembers.length === 0) return;
+                
+                setIsSpinning(true);
+                setSelectedMember(null);
+                const spinDuration = 3000;
+                const additionalRotation = 1440 + Math.random() * 360;
+
+                setRotation(prevRotation => prevRotation + additionalRotation);
+
+                // Tick sound during spinning
+                const tickInterval = setInterval(() => {
+                    if (isSpinning) {
+                        try {
+                            tickSoundRef.current.currentTime = 0;
+                            tickSoundRef.current.play();
+                        } catch (error) {
+                            console.log('Error playing tick sound', error);
+                        }
+                    }
+                }, 200);
+
+                if (spinTimeoutRef.current) {
+                    clearTimeout(spinTimeoutRef.current);
+                }
+
+                spinTimeoutRef.current = setTimeout(() => {
+                    // Stop tick sounds
+                    clearInterval(tickInterval);
+                    
+                    setIsSpinning(false);
+                    const finalAngle = (rotation + additionalRotation) % 360;
+                    const sectionAngle = 360 / activeMembers.length;
+                    const normalizedAngle = (270 - finalAngle + 360) % 360;
+                    const selectedIndex = Math.floor(normalizedAngle / sectionAngle);
+                    const winner = activeMembers[selectedIndex];
+                    
+                    // Play winner sound
+                    try {
+                        winSoundRef.current.play();
+                    } catch (error) {
+                        console.log('Error playing win sound', error);
+                    }
+                    
+                    setSelectedMember(winner);
+                }, spinDuration);
+            };
+
+            const getWheelSections = () => {
+                const total = activeMembers.length;
+                if (total === 0) return null;
+                
+                const sectionAngle = 360 / total;
+                
+                return activeMembers.map((member, index) => {
+                    const rotation = index * sectionAngle;
+                    const color = `hsl(${(index * 360) / total}, 70%, 70%)`;
+                    const angle = (Math.PI * 2) / total;
+                    
+                    const x1 = 200 * Math.cos(index * angle);
+                    const y1 = 200 * Math.sin(index * angle);
+                    const x2 = 200 * Math.cos((index + 1) * angle);
+                    const y2 = 200 * Math.sin((index + 1) * angle);
+                    
+                    const midAngle = (index + 0.5) * angle;
+                    const textRotation = (midAngle * 180) / Math.PI + 90;
+                    
+                    return (
+                        <g key={member}>
+                            <path
+                                d={`M 0 0 L ${x1} ${y1} L ${x2} ${y2} Z`}
+                                fill={color}
+                                stroke="#666"
+                            />
+                            <g transform={`rotate(${rotation + sectionAngle/2})`}>
+                                <text
+                                    style={{
+                                        fontSize: '14px',
+                                        fontWeight: 500,
+                                        fill: '#333'
+                                    }}
+                                    textAnchor="middle"
+                                    transform={`translate(100, 0) rotate(${textRotation - rotation - sectionAngle/2})`}
+                                    dominantBaseline="middle"
+                                >
+                                    {member}
+                                </text>
+                            </g>
+                        </g>
+                    );
+                });
+            };
+
+            const toggleMember = (member) => {
+                setTeamState(prev => ({
+                    ...prev,
+                    [member]: !prev[member]
+                }));
+            };
+
+            return (
+                <div className="container">
+                    <div className="wheel-container">
+                        <div style={{ position: 'relative', width: '400px', height: '400px' }}>
+                            <svg
+                                viewBox="-200 -200 400 400"
+                                style={{
+                                    width: '100%',
+                                    height: '100%',
+                                    transform: `rotate(${rotation}deg)`,
+                                    transition: isSpinning ? 'transform 3s cubic-bezier(0.2, 0.8, 0.2, 1)' : 'none'
+                                }}
+                            >
+                                {getWheelSections()}
+                                <circle r="2" fill="gray" />
+                            </svg>
+                            <div
+                                style={{
+                                    position: 'absolute',
+                                    top: 0,
+                                    left: '50%',
+                                    width: '8px',
+                                    height: '32px',
+                                    backgroundColor: '#ff0000',
+                                    transform: 'translateX(-50%) translateY(-50%)'
+                                }}
+                            />
+                        </div>
+                        <div className="controls">
+                            <button 
+                                onClick={spinWheel} 
+                                disabled={isSpinning || activeMembers.length === 0}
+                            >
+                                {isSpinning ? 'Spinning...' : 'Spin the Wheel!'}
+                            </button>
+                            {selectedMember && !isSpinning && (
+                                <div className="selected">
+                                    Selected: {selectedMember}
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                    
+                    <div className="members-panel">
+                        <h3>Team Members</h3>
+                        <div className="add-member">
+                            <input
+                                type="text"
+                                value={newMember}
+                                onChange={(e) => setNewMember(e.target.value)}
+                                placeholder="Add new member"
+                            />
+                            <button 
+                                onClick={handleAddMember}
+                                disabled={!newMember.trim()}
+                            >
+                                Add
+                            </button>
+                        </div>
+                        <div className="member-list">
+                            {Object.entries(teamState).map(([member, isActive]) => (
+                                <div key={member} className="member-item">
+                                    <input
+                                        type="checkbox"
+                                        id={member}
+                                        checked={isActive}
+                                        onChange={() => toggleMember(member)}
+                                    />
+                                    <label htmlFor={member}>
+                                        {member}
+                                    </label>
+                                </div>
+                            ))}
+                        </div>
+                    </div>
+                </div>
+            );
+        };
+
+        ReactDOM.render(<TeamSpinner />, document.getElementById('root'));
+    </script>
+</body>
+</html>
